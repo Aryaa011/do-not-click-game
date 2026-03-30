@@ -1,0 +1,1032 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DO NOT CLICK</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap');
+
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --red: #ff2a2a;
+    --red-dim: #991a1a;
+    --red-glow: #ff2a2a88;
+    --black: #0a0a0a;
+    --dark-red-bg: #120000;
+  }
+
+  html, body {
+    width: 100%; height: 100%;
+    overflow: hidden;
+    cursor: none;
+    background: #f2f2f2;
+    font-family: 'Share Tech Mono', monospace;
+    transition: background 0.6s ease;
+  }
+
+  /* ── PHASE 1 GRAIN OVERLAY ── */
+  #calm-grain {
+    position: fixed; inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    opacity: 0.035;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    background-size: 180px 180px;
+    transition: opacity 0.8s ease;
+  }
+  body.red-mode #calm-grain { opacity: 0; pointer-events: none; }
+
+  /* ── CURSOR ── */
+  #cursor {
+    position: fixed; top: 0; left: 0;
+    width: 11px; height: 11px;
+    border-radius: 50%;
+    background: #1c1c1c;
+    box-shadow: none;
+    pointer-events: none;
+    z-index: 9999;
+    will-change: left, top;
+    transition: background 0.45s ease, box-shadow 0.45s ease;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  #cursor.pulse {
+    animation: cursorPulse 0.32s cubic-bezier(0.2, 1.6, 0.4, 1) forwards;
+  }
+  @keyframes cursorPulse {
+    0%   { transform: translate(-50%,-50%) scale(1); }
+    45%  { transform: translate(-50%,-50%) scale(2.2); }
+    100% { transform: translate(-50%,-50%) scale(1); }
+  }
+  body.red-mode #cursor {
+    background: #ff2a2a;
+    box-shadow: 0 0 7px 2px rgba(255,42,42,0.7), 0 0 18px 5px rgba(255,42,42,0.3);
+  }
+
+  .trail-dot {
+    position: fixed; top: 0; left: 0;
+    border-radius: 50%;
+    background: #1c1c1c;
+    pointer-events: none;
+    z-index: 9997;
+    will-change: left, top;
+    transform: translate(-50%, -50%);
+    transition: background 0.5s ease, box-shadow 0.5s ease;
+  }
+  body.red-mode .trail-dot {
+    background: #ff2a2a;
+  }
+
+  /* ── CANVAS BG ── */
+  #bg-canvas {
+    position: fixed; inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.7s ease;
+  }
+  body.red-mode #bg-canvas { opacity: 1; }
+
+  /* ── SCANLINES ── */
+  #scanlines {
+    position: fixed; inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    background: repeating-linear-gradient(
+      to bottom,
+      transparent 0px,
+      transparent 2px,
+      rgba(0,0,0,0.18) 2px,
+      rgba(0,0,0,0.18) 4px
+    );
+    animation: scanMove 8s linear infinite;
+    opacity: 0;
+    transition: opacity 0.9s ease;
+  }
+  body.red-mode #scanlines { opacity: 1; }
+  @keyframes scanMove {
+    from { background-position: 0 0; }
+    to   { background-position: 0 100px; }
+  }
+
+  /* ── NOISE ── */
+  #noise {
+    position: fixed; inset: 0;
+    z-index: 2;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.9s ease;
+  }
+  body.red-mode #noise { opacity: 0.04; }
+
+  /* ── VIGNETTE ── */
+  #vignette {
+    position: fixed; inset: 0;
+    z-index: 3;
+    pointer-events: none;
+    background: radial-gradient(ellipse at center, transparent 40%, #000 100%);
+    opacity: 0;
+    transition: opacity 1s ease;
+  }
+  body.red-mode #vignette { opacity: 1; }
+
+  /* ── GLITCH FLASH ── */
+  #glitch-flash {
+    position: fixed; inset: 0;
+    z-index: 10;
+    pointer-events: none;
+    background: var(--red);
+    opacity: 0;
+  }
+
+  /* ── MAIN SCENE ── */
+  #scene {
+    position: fixed; inset: 0;
+    z-index: 5;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* ── LABEL ── */
+  #top-label {
+    position: absolute;
+    top: 32px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.35em;
+    color: #aaaaaa;
+    text-transform: uppercase;
+    opacity: 0.6;
+    animation: labelPulse 3s ease-in-out infinite;
+    transition: color 0.6s ease;
+  }
+  body.red-mode #top-label { color: var(--red-dim); opacity: 0.7; }
+  @keyframes labelPulse {
+    0%,100% { opacity: 0.5; }
+    50%      { opacity: 0.9; }
+  }
+
+  /* ── BUTTON ── */
+  #btn {
+    position: relative;
+    padding: 24px 56px;
+    border: 1.5px solid #1a1a1a;
+    background: transparent;
+    color: #1a1a1a;
+    font-family: 'Orbitron', sans-serif;
+    font-size: clamp(18px, 4vw, 28px);
+    font-weight: 900;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    cursor: none;
+    user-select: none;
+    outline: none;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.10);
+    transition: border-color 0.5s ease, color 0.5s ease, box-shadow 0.4s ease;
+    z-index: 6;
+    white-space: nowrap;
+    -webkit-tap-highlight-color: transparent;
+    animation: floatBtn 4s ease-in-out infinite;
+  }
+  @keyframes floatBtn {
+    0%,100% { transform: translateY(0px); }
+    50%      { transform: translateY(-7px); }
+  }
+  body.red-mode #btn {
+    border-color: var(--red);
+    color: var(--red);
+    box-shadow: 0 0 12px 2px var(--red-glow), inset 0 0 20px rgba(255,42,42,0.05);
+    animation: none;
+  }
+  body.red-mode #btn:hover {
+    box-shadow: 0 0 24px 6px var(--red-glow), inset 0 0 30px rgba(255,42,42,0.1);
+  }
+  #btn:hover:not(body.red-mode #btn) { transform: translateY(-7px) scale(1.02); }
+  #btn::before, #btn::after {
+    content: '';
+    position: absolute;
+    background: #1a1a1a;
+    transition: background 0.5s ease;
+  }
+  body.red-mode #btn::before,
+  body.red-mode #btn::after { background: var(--red); }
+  #btn::before {
+    width: 6px; height: 6px;
+    top: -3px; left: -3px;
+  }
+  #btn::after {
+    width: 6px; height: 6px;
+    bottom: -3px; right: -3px;
+  }
+  /* Calm text change: soft fade-scale instead of glitch */
+  #btn.calm-change {
+    animation: calmFade 0.35s ease forwards;
+  }
+  @keyframes calmFade {
+    0%  { opacity: 1; transform: translateY(-7px) scale(1); }
+    40% { opacity: 0; transform: translateY(-7px) scale(0.96); }
+    100%{ opacity: 1; transform: translateY(-7px) scale(1); }
+  }
+  #btn.glitch-text {
+    animation: glitchAnim 0.35s steps(2) forwards;
+  }
+  @keyframes glitchAnim {
+    0%  { transform: translate(0,0) skewX(0deg); filter: none; }
+    20% { transform: translate(-4px, 2px) skewX(-6deg); filter: hue-rotate(90deg) brightness(2); color: #fff; }
+    40% { transform: translate(4px, -2px) skewX(4deg); filter: hue-rotate(180deg) brightness(1.5); }
+    60% { transform: translate(-2px, 0) skewX(0deg); filter: hue-rotate(0deg) brightness(2); color: #fff; }
+    80% { transform: translate(2px, 1px) skewX(2deg); filter: none; }
+    100%{ transform: translate(0,0) skewX(0deg); filter: none; }
+  }
+  #btn.pop {
+    animation: popIn 0.25s cubic-bezier(0.2,1.6,0.4,1) forwards;
+  }
+  @keyframes popIn {
+    0%  { transform: scale(0.7); opacity: 0.4; filter: brightness(3); }
+    60% { transform: scale(1.08); opacity: 1; }
+    100%{ transform: scale(1); opacity: 1; }
+  }
+
+  /* ── SYSTEM LOG ── */
+  #syslog {
+    position: fixed;
+    bottom: 24px;
+    left: 24px;
+    right: 24px;
+    z-index: 7;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: clamp(9px, 1.5vw, 11px);
+    color: var(--red-dim);
+    opacity: 0;
+    pointer-events: none;
+    line-height: 1.7;
+    max-width: 520px;
+  }
+  #syslog.visible { opacity: 1; }
+  #syslog .log-line {
+    display: block;
+    overflow: hidden;
+    white-space: nowrap;
+    animation: typeIn 0.6s steps(40, end) forwards;
+    max-width: 100%;
+  }
+  @keyframes typeIn {
+    from { width: 0; }
+    to   { width: 100%; }
+  }
+  .log-warn { color: var(--red); }
+
+  /* ── CALM AMBIENT RIPPLE ── */
+  #calm-ripple {
+    position: fixed; inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    opacity: 1;
+    transition: opacity 0.9s ease;
+  }
+  body.red-mode #calm-ripple { opacity: 0; }
+
+  /* ── BUTTON ANTICIPATION (aware shrink) ── */
+  #btn.aware {
+    transform: scale(0.93) !important;
+    transition: transform 0.12s ease, border-color 0.5s ease, color 0.5s ease, box-shadow 0.4s ease !important;
+  }
+  #red-tint {
+    position: fixed; inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    background: radial-gradient(ellipse at center, #1a000088 0%, #0a000099 100%);
+    opacity: 0;
+    transition: opacity 1.2s ease;
+  }
+  #red-tint.active { opacity: 1; }
+
+  /* ── CORNER DECORATIONS ── */
+  .corner {
+    position: fixed;
+    width: 40px; height: 40px;
+    border-color: var(--red-dim);
+    border-style: solid;
+    opacity: 0;
+    z-index: 4;
+    transition: opacity 0.8s ease;
+  }
+  body.red-mode .corner { opacity: 0.4; }
+  .corner.tl { top: 16px; left: 16px; border-width: 1px 0 0 1px; }
+  .corner.tr { top: 16px; right: 16px; border-width: 1px 1px 0 0; }
+  .corner.bl { bottom: 16px; left: 16px; border-width: 0 0 1px 1px; }
+  .corner.br { bottom: 16px; right: 16px; border-width: 0 1px 1px 0; }
+
+  /* ── COUNTER ── */
+  #counter {
+    position: fixed;
+    top: 32px; right: 32px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    color: var(--red-dim);
+    opacity: 0;
+    z-index: 7;
+    letter-spacing: 0.2em;
+    transition: opacity 0.8s ease;
+  }
+  body.red-mode #counter { opacity: 0.5; }
+
+  /* ── STATUS ── */
+  #status-line {
+    position: fixed;
+    top: 32px; left: 32px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    color: var(--red-dim);
+    opacity: 0;
+    z-index: 7;
+    letter-spacing: 0.1em;
+    transition: opacity 0.8s ease;
+  }
+  body.red-mode #status-line { opacity: 0.5; }
+  #status-line .blink {
+    animation: blink 1s step-end infinite;
+  }
+  @keyframes blink {
+    0%,100% { opacity: 1; }
+    50%      { opacity: 0; }
+  }
+
+  /* ── SHAKE ── */
+  @keyframes shake {
+    0%  { transform: translate(0,0) rotate(0deg); }
+    15% { transform: translate(-3px, 2px) rotate(-0.4deg); }
+    30% { transform: translate(3px, -1px) rotate(0.4deg); }
+    45% { transform: translate(-2px, 3px) rotate(-0.2deg); }
+    60% { transform: translate(2px, -2px) rotate(0.3deg); }
+    75% { transform: translate(-1px, 1px) rotate(-0.1deg); }
+    100%{ transform: translate(0,0) rotate(0deg); }
+  }
+  body.shaking {
+    animation: shake 0.35s ease-in-out;
+  }
+
+  /* ── AUDIO HINT ── */
+  #audio-hint {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    color: #999;
+    opacity: 0.5;
+    z-index: 7;
+    letter-spacing: 0.15em;
+    transition: opacity 0.5s, color 0.5s;
+  }
+  body.red-mode #audio-hint { color: var(--red-dim); }
+  #audio-hint.hidden { opacity: 0; pointer-events: none; }
+
+  /* ── TRANSITION OVERLAY ── */
+  #transition-overlay {
+    position: fixed; inset: 0;
+    z-index: 50;
+    pointer-events: none;
+    opacity: 0;
+    background: #ffffff;
+  }
+  @keyframes transitionSeq {
+    0%   { opacity: 0; background: #ffffff; }
+    12%  { opacity: 1; background: #ffffff; }
+    30%  { opacity: 1; background: #ff2a2a; }
+    55%  { opacity: 0.7; background: #ff2a2a; filter: saturate(2) brightness(0.7); }
+    75%  { opacity: 0.3; background: #ff0000; filter: saturate(3) brightness(0.4); }
+    88%  { opacity: 0.1; }
+    100% { opacity: 0; }
+  }
+  #transition-overlay.firing {
+    animation: transitionSeq 0.75s cubic-bezier(0.4,0,0.2,1) forwards;
+  }
+  @keyframes distortScene {
+    0%  { filter: none; }
+    20% { filter: contrast(1.4) saturate(0) brightness(1.8); }
+    40% { filter: contrast(2) saturate(3) hue-rotate(180deg) brightness(0.6); }
+    60% { filter: contrast(1.6) saturate(2) hue-rotate(90deg); }
+    80% { filter: contrast(1.1) saturate(1.2); }
+    100%{ filter: none; }
+  }
+  body.transitioning { animation: distortScene 0.65s steps(3) forwards; }
+</style>
+</head>
+<body>
+
+<!-- Background -->
+<canvas id="bg-canvas"></canvas>
+<div id="scanlines"></div>
+<canvas id="noise"></canvas>
+<div id="vignette"></div>
+<div id="red-tint"></div>
+<div id="glitch-flash"></div>
+<div id="calm-grain"></div>
+<canvas id="calm-ripple"></canvas>
+<div id="transition-overlay"></div>
+
+<!-- Corner accents -->
+<div class="corner tl"></div>
+<div class="corner tr"></div>
+<div class="corner bl"></div>
+<div class="corner br"></div>
+
+<!-- HUD -->
+<div id="status-line">SYS:ONLINE <span class="blink">▮</span></div>
+<div id="counter">BREACH: 0%</div>
+<div id="audio-hint">[ AUDIO ENABLED ON CLICK ]</div>
+
+<!-- Scene -->
+<div id="scene">
+  <div id="top-label">[ Interactive Experience ]</div>
+  <button id="btn">DO NOT CLICK</button>
+</div>
+
+<!-- System log -->
+<div id="syslog"></div>
+
+<!-- Custom cursor -->
+<div id="cursor"></div>
+
+<script>
+// ── AUDIO ENGINE ──
+let audioCtx = null;
+let ambientStarted = false;
+
+function initAudio() {
+  if (audioCtx) return;
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+}
+
+function startAmbient() {
+  if (ambientStarted || !audioCtx) return;
+  ambientStarted = true;
+
+  // Low drone
+  const osc1 = audioCtx.createOscillator();
+  const osc2 = audioCtx.createOscillator();
+  const gainNode = audioCtx.createGain();
+  const filter = audioCtx.createBiquadFilter();
+
+  osc1.type = 'sawtooth';
+  osc1.frequency.setValueAtTime(55, audioCtx.currentTime);
+  osc2.type = 'sine';
+  osc2.frequency.setValueAtTime(55.5, audioCtx.currentTime);
+
+  filter.type = 'lowpass';
+  filter.frequency.setValueAtTime(400, audioCtx.currentTime);
+
+  gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
+  gainNode.gain.linearRampToValueAtTime(0.07, audioCtx.currentTime + 2.5);
+
+  osc1.connect(filter);
+  osc2.connect(filter);
+  filter.connect(gainNode);
+  gainNode.connect(audioCtx.destination);
+  osc1.start(); osc2.start();
+
+  // Slow LFO tremolo on gain
+  const lfo = audioCtx.createOscillator();
+  const lfoGain = audioCtx.createGain();
+  lfo.frequency.value = 0.12;
+  lfoGain.gain.value = 0.025;
+  lfo.connect(lfoGain);
+  lfoGain.connect(gainNode.gain);
+  lfo.start();
+
+  window._ambientGain = gainNode;
+  window._ambientFilter = filter;
+}
+
+function intensifyAmbient() {
+  if (!window._ambientGain || !audioCtx) return;
+  window._ambientGain.gain.linearRampToValueAtTime(0.14, audioCtx.currentTime + 1.5);
+  window._ambientFilter.frequency.linearRampToValueAtTime(700, audioCtx.currentTime + 2);
+}
+
+function playGlitchClick() {
+  if (!audioCtx) return;
+  const t = audioCtx.currentTime;
+
+  // Noise burst
+  const bufLen = audioCtx.sampleRate * 0.08;
+  const buf = audioCtx.createBuffer(1, bufLen, audioCtx.sampleRate);
+  const data = buf.getChannelData(0);
+  for (let i = 0; i < bufLen; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / bufLen);
+  const noiseNode = audioCtx.createBufferSource();
+  noiseNode.buffer = buf;
+
+  const ngain = audioCtx.createGain();
+  const nfilt = audioCtx.createBiquadFilter();
+  nfilt.type = 'bandpass';
+  nfilt.frequency.value = 1200 + Math.random() * 800;
+  nfilt.Q.value = 1.5;
+  ngain.gain.setValueAtTime(0.35, t);
+  ngain.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
+
+  noiseNode.connect(nfilt);
+  nfilt.connect(ngain);
+  ngain.connect(audioCtx.destination);
+  noiseNode.start(t);
+  noiseNode.stop(t + 0.09);
+
+  // Sub thud
+  const osc = audioCtx.createOscillator();
+  const og = audioCtx.createGain();
+  osc.frequency.setValueAtTime(120, t);
+  osc.frequency.exponentialRampToValueAtTime(30, t + 0.06);
+  og.gain.setValueAtTime(0.4, t);
+  og.gain.exponentialRampToValueAtTime(0.001, t + 0.06);
+  osc.connect(og); og.connect(audioCtx.destination);
+  osc.start(t); osc.stop(t + 0.07);
+}
+
+// ── NOISE CANVAS ──
+(function buildNoise() {
+  const c = document.getElementById('noise');
+  const ctx = c.getContext('2d');
+  c.width = 200; c.height = 200;
+  function draw() {
+    const id = ctx.createImageData(200, 200);
+    for (let i = 0; i < id.data.length; i += 4) {
+      const v = Math.random() * 255 | 0;
+      id.data[i] = id.data[i+1] = id.data[i+2] = v;
+      id.data[i+3] = 255;
+    }
+    ctx.putImageData(id, 0, 0);
+  }
+  draw();
+  setInterval(draw, 80);
+})();
+
+// ── GRID BACKGROUND ──
+(function buildGrid() {
+  const canvas = document.getElementById('bg-canvas');
+  const ctx = canvas.getContext('2d');
+
+  function resize() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    draw();
+  }
+
+  let phase = 0;
+  function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#0a0a0a';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    const spacing = 48;
+    ctx.strokeStyle = `rgba(180,30,30,${0.06 + 0.02 * Math.sin(phase)})`;
+    ctx.lineWidth = 0.5;
+    for (let x = 0; x < canvas.width; x += spacing) {
+      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
+    }
+    for (let y = 0; y < canvas.height; y += spacing) {
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
+    }
+    phase += 0.015;
+  }
+  resize();
+  setInterval(draw, 50);
+  window.addEventListener('resize', resize);
+})();
+
+// ── CALM RIPPLE BACKGROUND ──
+(function buildCalmRipple() {
+  const canvas = document.getElementById('calm-ripple');
+  const ctx    = canvas.getContext('2d');
+  let W, H, t = 0;
+
+  function resize() {
+    W = canvas.width  = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  function draw() {
+    if (document.body.classList.contains('red-mode')) {
+      requestAnimationFrame(draw);
+      return;
+    }
+    ctx.clearRect(0, 0, W, H);
+
+    // 3 slow drifting radial blobs — very low opacity
+    const blobs = [
+      { xf: 0.35 + 0.12 * Math.sin(t * 0.00028), yf: 0.38 + 0.10 * Math.cos(t * 0.00022), r: W * 0.42, a: 0.055 },
+      { xf: 0.65 + 0.10 * Math.cos(t * 0.00019), yf: 0.60 + 0.12 * Math.sin(t * 0.00031), r: W * 0.38, a: 0.042 },
+      { xf: 0.50 + 0.08 * Math.sin(t * 0.00024 + 1.2), yf: 0.50 + 0.07 * Math.cos(t * 0.00017 + 0.8), r: W * 0.30, a: 0.032 },
+    ];
+
+    blobs.forEach(b => {
+      const cx = b.xf * W;
+      const cy = b.yf * H;
+      const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, b.r);
+      grad.addColorStop(0,   `rgba(180,180,180,${b.a})`);
+      grad.addColorStop(0.5, `rgba(200,200,200,${b.a * 0.4})`);
+      grad.addColorStop(1,   'rgba(242,242,242,0)');
+      ctx.beginPath();
+      ctx.arc(cx, cy, b.r, 0, Math.PI * 2);
+      ctx.fillStyle = grad;
+      ctx.fill();
+    });
+
+    // Faint concentric pulse ring — breathes in/out
+    const pulse = 0.5 + 0.5 * Math.sin(t * 0.00035);
+    const ringR = W * (0.18 + pulse * 0.06);
+    const ringA = 0.028 * (1 - pulse * 0.5);
+    const rg = ctx.createRadialGradient(W/2, H/2, ringR * 0.7, W/2, H/2, ringR);
+    rg.addColorStop(0, `rgba(160,160,160,0)`);
+    rg.addColorStop(0.6, `rgba(160,160,160,${ringA})`);
+    rg.addColorStop(1, `rgba(160,160,160,0)`);
+    ctx.beginPath();
+    ctx.arc(W/2, H/2, ringR, 0, Math.PI * 2);
+    ctx.fillStyle = rg;
+    ctx.fill();
+
+    t += 16; // ~60fps tick increment
+    requestAnimationFrame(draw);
+  }
+  draw();
+})();
+
+
+const cursor = document.getElementById('cursor');
+const TRAIL_COUNT = 12;
+const LERP_FACTOR = 0.18; // how quickly each dot chases the one ahead
+
+// Create trail nodes: each stores its own interpolated x/y
+const trailNodes = [];
+for (let i = 0; i < TRAIL_COUNT; i++) {
+  const el = document.createElement('div');
+  el.className = 'trail-dot';
+  // sizes: 7px → 1.5px, largest closest to cursor
+  const size = Math.max(1.5, 7 - i * 0.48);
+  el.style.width  = size + 'px';
+  el.style.height = size + 'px';
+  el.style.opacity = '0';
+  // blur: only first few dots get a glow filter
+  if (i < 5) el.style.filter = `blur(${(i * 0.3).toFixed(1)}px)`;
+  document.body.appendChild(el);
+  trailNodes.push({ el, x: -200, y: -200 });
+}
+
+// Raw mouse target
+let mouseX = -200, mouseY = -200;
+
+function updateMouse(x, y) {
+  mouseX = x;
+  mouseY = y;
+}
+
+document.addEventListener('mousemove', e => updateMouse(e.clientX, e.clientY));
+document.addEventListener('touchmove', e => {
+  e.preventDefault();
+  updateMouse(e.touches[0].clientX, e.touches[0].clientY);
+}, { passive: false });
+document.addEventListener('touchstart', e => {
+  const t = e.touches[0];
+  updateMouse(t.clientX, t.clientY);
+  // seed all nodes to touch position to prevent initial rubber-band
+  trailNodes.forEach(n => { n.x = t.clientX; n.y = t.clientY; });
+});
+
+// Click pulse
+document.addEventListener('mousedown', () => {
+  cursor.classList.remove('pulse');
+  void cursor.offsetWidth; // reflow to restart animation
+  cursor.classList.add('pulse');
+  setTimeout(() => cursor.classList.remove('pulse'), 350);
+});
+document.addEventListener('touchend', () => {
+  cursor.classList.remove('pulse');
+  void cursor.offsetWidth;
+  cursor.classList.add('pulse');
+  setTimeout(() => cursor.classList.remove('pulse'), 350);
+});
+
+// rAF loop — lerp each node toward the one ahead of it
+function animateCursor() {
+  const isRed = document.body.classList.contains('red-mode');
+
+  // Main cursor snaps instantly to mouse
+  cursor.style.left = mouseX + 'px';
+  cursor.style.top  = mouseY + 'px';
+
+  // Each trail node lerps toward the target ahead of it
+  for (let i = 0; i < TRAIL_COUNT; i++) {
+    const node    = trailNodes[i];
+    const targetX = i === 0 ? mouseX : trailNodes[i - 1].x;
+    const targetY = i === 0 ? mouseY : trailNodes[i - 1].y;
+
+    node.x += (targetX - node.x) * LERP_FACTOR;
+    node.y += (targetY - node.y) * LERP_FACTOR;
+
+    node.el.style.left = node.x + 'px';
+    node.el.style.top  = node.y + 'px';
+
+    if (isRed) {
+      // Red mode: bright taper 0.72 → 0, with per-dot glow via filter
+      const alpha = Math.max(0, (1 - i / TRAIL_COUNT) * 0.72);
+      node.el.style.opacity = alpha.toFixed(3);
+      if (i < 4) node.el.style.filter = `blur(${(i * 0.5).toFixed(1)}px) drop-shadow(0 0 3px #ff2a2a)`;
+      else        node.el.style.filter = `blur(${(i * 0.3).toFixed(1)}px)`;
+    } else {
+      // Calm mode: dark dots, subtle, taper 0.22 → 0
+      const alpha = Math.max(0, (1 - i / TRAIL_COUNT) * 0.22);
+      node.el.style.opacity = alpha.toFixed(3);
+      node.el.style.filter  = 'none';
+    }
+  }
+
+  requestAnimationFrame(animateCursor);
+}
+animateCursor();
+
+// ── STATE ──
+const btn = document.getElementById('btn');
+const syslog = document.getElementById('syslog');
+const redTint = document.getElementById('red-tint');
+const glitchFlash = document.getElementById('glitch-flash');
+const counter = document.getElementById('counter');
+const audioHint = document.getElementById('audio-hint');
+
+let clickCount = 0;
+let redMode = false;
+let btnAlive = false;
+let canTeleport = true;
+let btnRect = { x: null, y: null };
+
+const phases = [
+  'DO NOT CLICK',
+  'you shouldn\'t.',
+  'seriously. stop.',
+  'last warning.',
+  'fine.'
+];
+
+const logLines = [
+  ['ACCESSING ROOT...', false],
+  ['ANALYZING USER BEHAVIOR...', false],
+  ['WARNING: NON-COMPLIANT USER DETECTED', true],
+  ['INITIATING CONTAINMENT PROTOCOL...', true],
+  ['TRACING INPUT ORIGIN...', false],
+  ['> BREACH PROBABILITY: CRITICAL', true],
+  ['COUNTERMEASURES ACTIVE', false],
+  ['> YOU WERE WARNED', true],
+];
+
+function updateCounter() {
+  const pct = Math.min(100, clickCount * 20);
+  counter.textContent = `BREACH: ${pct}%`;
+}
+
+function triggerGlitchText() {
+  if (!redMode) {
+    // Phase 1: soft fade-scale swap
+    btn.classList.remove('calm-change');
+    void btn.offsetWidth;
+    btn.classList.add('calm-change');
+    setTimeout(() => btn.classList.remove('calm-change'), 380);
+  } else {
+    // Phase 2: aggressive glitch
+    btn.classList.remove('glitch-text');
+    void btn.offsetWidth;
+    btn.classList.add('glitch-text');
+    setTimeout(() => btn.classList.remove('glitch-text'), 400);
+  }
+}
+
+function triggerFlash(intensity = 0.12) {
+  if (!redMode) return; // no flashes during calm phase
+  glitchFlash.style.transition = 'none';
+  glitchFlash.style.opacity = intensity;
+  setTimeout(() => {
+    glitchFlash.style.transition = 'opacity 0.15s ease';
+    glitchFlash.style.opacity = 0;
+  }, 60);
+}
+
+function triggerShake() {
+  document.body.classList.remove('shaking');
+  void document.body.offsetWidth;
+  document.body.classList.add('shaking');
+  setTimeout(() => document.body.classList.remove('shaking'), 400);
+}
+
+function appendLog(lines) {
+  syslog.innerHTML = '';
+  lines.forEach((l, i) => {
+    const span = document.createElement('span');
+    span.className = 'log-line' + (l[1] ? ' log-warn' : '');
+    span.textContent = '> ' + l[0];
+    span.style.animationDelay = (i * 0.18) + 's';
+    syslog.appendChild(span);
+  });
+}
+
+function activateRedMode() {
+  redMode = true;
+  btnAlive = true;
+
+  const overlay = document.getElementById('transition-overlay');
+
+  // Step 1 — white-to-red flash overlay
+  overlay.classList.add('firing');
+
+  // Step 2 — distort scene filter mid-flash
+  setTimeout(() => {
+    document.body.classList.add('transitioning');
+    playGlitchClick();
+  }, 100);
+
+  // Step 3 — swap body to dark at peak of flash
+  setTimeout(() => {
+    document.body.style.background = '#0a0a0a';
+    document.body.classList.add('red-mode');
+  }, 320);
+
+  // Step 4 — remove distortion, clean up overlay
+  setTimeout(() => {
+    document.body.classList.remove('transitioning');
+    overlay.classList.remove('firing');
+  }, 800);
+
+  // Step 5 — activate existing red-mode systems
+  setTimeout(() => {
+    redTint.classList.add('active');
+    syslog.classList.add('visible');
+    intensifyAmbient();
+    appendLog(logLines.slice(0, 4));
+
+    // Periodic glitch flashes
+    setInterval(() => {
+      if (Math.random() < 0.35) {
+        triggerFlash(0.08 + Math.random() * 0.1);
+        if (Math.random() < 0.4) triggerShake();
+      }
+    }, 1800);
+
+    // Cycle logs
+    let logIdx = 0;
+    setInterval(() => {
+      logIdx = (logIdx + 2) % logLines.length;
+      const slice = logLines.slice(logIdx, logIdx + 4);
+      appendLog(slice);
+    }, 3500);
+  }, 500);
+}
+
+// ── BUTTON TELEPORT ──
+function getButtonCenter() {
+  const r = btn.getBoundingClientRect();
+  return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+}
+
+let lastBtnX = window.innerWidth / 2;
+let lastBtnY = window.innerHeight / 2;
+
+function teleportBtn() {
+  if (!canTeleport) return;
+  canTeleport = false;
+
+  const bw     = btn.offsetWidth;
+  const bh     = btn.offsetHeight;
+  const margin = 24;
+  const vw     = window.innerWidth;
+  const vh     = window.innerHeight;
+
+  // Minimum distance from cursor and from previous position
+  const MIN_FROM_CURSOR = 200;
+  const MIN_FROM_PREV   = 160;
+  const MAX_ATTEMPTS    = 40;
+
+  let nx, ny, attempt = 0;
+  do {
+    // Bias toward edges: use squared random to pull away from center
+    const rx = Math.random();
+    const ry = Math.random();
+    // Map to full range but weight toward corners
+    nx = margin + rx * (vw - bw - margin * 2);
+    ny = margin + ry * (vh - bh - margin * 2);
+
+    const dcx  = nx + bw/2 - mouseX;
+    const dcy  = ny + bh/2 - mouseY;
+    const dCursor = Math.sqrt(dcx*dcx + dcy*dcy);
+
+    const dpx  = nx + bw/2 - lastBtnX;
+    const dpy  = ny + bh/2 - lastBtnY;
+    const dPrev = Math.sqrt(dpx*dpx + dpy*dpy);
+
+    if (dCursor >= MIN_FROM_CURSOR && dPrev >= MIN_FROM_PREV) break;
+    attempt++;
+  } while (attempt < MAX_ATTEMPTS);
+
+  // Clamp to viewport (safety)
+  nx = Math.max(margin, Math.min(nx, vw - bw - margin));
+  ny = Math.max(margin, Math.min(ny, vh - bh - margin));
+
+  lastBtnX = nx + bw / 2;
+  lastBtnY = ny + bh / 2;
+
+  btn.classList.remove('aware');
+  btn.style.position  = 'fixed';
+  btn.style.left      = nx + 'px';
+  btn.style.top       = ny + 'px';
+  btn.style.transform = 'none';
+  btn.style.margin    = '0';
+
+  // Quick pop arrival flash
+  btn.classList.remove('pop');
+  void btn.offsetWidth;
+  btn.classList.add('pop');
+  setTimeout(() => btn.classList.remove('pop'), 250);
+
+  triggerFlash(0.05);
+  setTimeout(() => { canTeleport = true; }, 175);
+}
+
+// ── PROXIMITY TRACKING — anticipation + escape ──
+const ESCAPE_RADIUS     = 180;
+const ANTICIPATE_RADIUS = 280;
+
+function checkProximity() {
+  if (!btnAlive) return;
+  const bc   = getButtonCenter();
+  const dx   = mouseX - bc.x;
+  const dy   = mouseY - bc.y;
+  const dist = Math.sqrt(dx * dx + dy * dy);
+
+  if (dist < ESCAPE_RADIUS) {
+    // Hard escape
+    btn.classList.remove('aware');
+    teleportBtn();
+  } else if (dist < ANTICIPATE_RADIUS) {
+    // Anticipation: button shrinks slightly, feels nervous
+    btn.classList.add('aware');
+  } else {
+    btn.classList.remove('aware');
+  }
+}
+
+setInterval(checkProximity, 30);
+
+// ── CLICK HANDLER ──
+function handleClick() {
+  initAudio();
+  startAmbient();
+  audioHint.classList.add('hidden');
+  playGlitchClick();
+
+  clickCount++;
+  updateCounter();
+  triggerFlash(0.1 + clickCount * 0.03);
+
+  if (clickCount < phases.length) {
+    btn.textContent = phases[clickCount];
+    triggerGlitchText();
+  }
+
+  if (clickCount === 4 && !redMode) {
+    activateRedMode();
+    setTimeout(() => {
+      btn.style.position = 'fixed';
+      btn.style.left = '50%';
+      btn.style.top = '50%';
+      btn.style.transform = 'translate(-50%, -50%)';
+    }, 100);
+  }
+
+  if (clickCount > 4) {
+    triggerShake();
+    if (clickCount % 2 === 0) {
+      const extras = [
+        ['UNAUTHORIZED ACCESS: CONFIRMED', true],
+        ['ESCALATING RESPONSE LEVEL...', false],
+        ['USER IDENTITY: LOGGED', true],
+        ['SYSTEM INTEGRITY: COMPROMISED', true],
+        ['> DO YOU FEEL IN CONTROL?', false],
+      ];
+      appendLog([extras[clickCount % extras.length], logLines[clickCount % logLines.length]]);
+    }
+  }
+}
+
+btn.addEventListener('click', handleClick);
+btn.addEventListener('touchend', e => { e.preventDefault(); handleClick(); });
+
+// ── PREVENT CONTEXT MENU ──
+document.addEventListener('contextmenu', e => e.preventDefault());
+
+// ── INIT POSITION ──
+btn.style.position = 'relative';
+</script>
+</body>
+</html>
