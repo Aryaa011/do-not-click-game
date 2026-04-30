@@ -16,7 +16,7 @@ An interactive psychological web experience that plays with user behavior.
 - JavaScript (interaction logic)
 
 ## 🚀 Live Demo
-https://nooclick.netlify.app/
+https://donotclickgame.netlify.app
 
 ## 👤 Author
 Arya Jain
